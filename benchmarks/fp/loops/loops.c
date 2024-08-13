@@ -713,9 +713,27 @@ e_fp hydro_fragment(loops_params *p) {
 
     for ( l=1 ; l<=loop ; l++ ) {
 		reinit_vec(p,z,n+11); /* force multiple iterations with new data for each iteration */
+        #if USE_RVV
+        // Naive implementation: adds to calculate address, loads k+10 and k+11 separately, no static optimization
+        uint32_t vl;
+        // k is number of remaining elements
+        // Don't need k to generate exact addresses due to unit-stride
+        for (k=0 ; k<n ; k+=vl) {
+            __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(n-k));
+            __asm__ volatile ("vle32.v v16, (%0)" : : "r"(z+k+10)); //z[k+10]
+            __asm__ volatile ("vfmul.vf v8, v16, %0" : : : "f"(r)); //r*
+            __asm__ volatile ("vle32.v v24, (%0)" : : "r"(z+k+11)); //z[k+11]
+            __asm__ volatile ("vfmacc.vf v8, v24, %" : : "f"(t)); //+t*
+            __asm__ volatile ("vle32.v v0, (%0)" : : "r"(y+k));     //y[k]
+            __asm__ volatile ("vfmul.vv v16, v8, v0");              //y*()
+            __asm__ volatile ("vfadd.vf v24, v16, %0" : : "f"(q)) //q+
+            __asm__ volatile ("vse32.v v0, (%0)" : : "r"(x+k));     //x[k]=
+        }
+        #else
         for ( k=0 ; k<n ; k++ ) {
             x[k] = q + y[k]*( r*z[k+10] + t*z[k+11] );
         }
+        #endif
 		ret+=get_array_feedback(x,n); /* force the calculation */
     }
 
@@ -756,10 +774,34 @@ e_fp cholesky(loops_params *p) {
             ipntp += ii;
             ii /= 2;
             i = ipntp - 1;
+            #if USE_RVV
+            // Could shift ii, but calculating ipntp requires many additions
+            // ipntp-ipntp varies in length, so iterating over inner loop wastes less
+            e_fp x_out = x+i;
+            uint32_t vl = 1;
+            for (k=ipnt+1; k<ipntp; k= k+(vl<<1)) {
+                x_out += vl;
+                __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(k));
+
+                __asm__ volatile ("vle32.v v0, (%0)" : : "r"(v+k));    //v[k]
+                __asm__ volatile ("vle32.v v8, (%0)" : : "r"(x+k-1));  //x[k-1]
+                __asm__ volatile ("vle32.v v16, (%0)" : : "r"(x+k));   //x[k]
+                __asm__ volatile ("vfnmsac.vv v16, v0, v8");           //x[k]-v[k]*x[k-1]
+
+                // Doesn't use shift on repeated array accesses
+                // Loads will most likely be cached
+                __asm__ volatile ("vle32.v v24, (%0)" : : "r"(x+k+1)); //x[k+1]
+                __asm__ volatile ("vle32.v v8, (%0)" : : "r"(v+k+1));  //v[k+1]
+                __asm__ volatile ("vfnmsac.vv v16, v8, v24");          //-v[k+1]*x[k+1]
+                __asm__ volatile ("vse32.v v16, (%0)" : : "r"(x_out)); //x[i]=
+            }
+
+            #else
             for ( k=ipnt+1 ; k<ipntp ; k=k+2 ) {
                 i++;
                 x[i] = x[k] - v[k  ]*x[k-1] - v[k+1]*x[k+1];
             }
+            #endif
         } while ( ii>0 );
     }
 	if (p->full_verify)
@@ -789,15 +831,36 @@ e_fp inner_product(loops_params *p) {
 	 *
 	 *	SG : original code only had to perform one loop. Moved q initialization out of loop.
      */
-
     for ( l=1 ; l<=loop ; l++ ) {
+        #if USE_RVV
+        // Directly track current addresses
+        e_fp* z_step = z+l, x_step = x;
+        uint32_t vl;
+        __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(n));
+        __asm__ volatile ("vfmv.s.f v2, %0" : : "f"(q));
+        // k is number of remaining elements
+        // Don't need k to generate exact addresses due to unit-stride
+        for (k=n; k>0; k-=vl) {
+            __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(k));
+            __asm__ volatile ("vle32.v v16, (%0)" : : "r"(z_step));
+            __asm__ volatile ("vle32.v v24, (%0)" : : "r"(x_step));
+            __asm__ volatile ("vfmul.vv v8, v16, v24");
+            // Operations must be in-order for exact replication, so must reduce in loop
+            __asm__ volatile ("vfredosum.vs v2, v8, v2");
+            z_step+=vl, x_step+=vl;
+        }
+        __asm__ ("vfmv.f.s %0, v2" : "=f" (q));
+
+        #else
         for ( k=0 ; k<n ; k++ ) {
             q += z[k+l]*x[k];
         }
-#if (BMDEBUG && DEBUG_ACCURATE_BITS)
-	th_printf("\niprod %d:",debug_counter++);
-	th_print_fp(q);
-#endif
+        #endif
+
+        #if (BMDEBUG && DEBUG_ACCURATE_BITS)
+	    th_printf("\niprod %d:",debug_counter++);
+	    th_print_fp(q);
+        #endif
     }
 	return q;
 }
@@ -834,12 +897,33 @@ e_fp banded_linear(loops_params *p) {
     m = ( 1001-7 )/2;
     for ( l=1 ; l<=loop ; l++ ) {
         for ( k=6 ; k<1001 ; k=k+m ) {
+            #if USE_RVV
+            // Innermost loop vectorized because outer only does a few iterations
+            unsigned int vl;
+            const unsigned int ystride = 5*sizeof(e_fp);
+            unsigned int remaining = (n-4)/5;
+            e_fp* xptr = x+(k-6);
+            __asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(1));
+            __asm__ volatile("vfmv.s.f v0, %0" : : "f"(x[k-1]));
+            for (j=4; j<n; j+=5*vl) {
+                __asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(remaining));
+                __asm__ volatile("vle32.v v8, %0": : "r"(xptr)); //x[lw]
+                __asm__ volatile("vlse32.v v16, (%0), %1" : : "r"(y+j), "r"(ystride)); //y[j]
+                __asm__ volatile("vfmul.vv v32, v8, v16"); //x[lw]*y[j]
+                __asm__ volatile("vfrsub.vf v32, v32, %0" : : "f"(0)); //-x[lw]*y[j]
+                __asm__ volatile("vfredosum.v v0, v32, v0"); //temp += -x[lw]*y[j]
+                xptr += vl;
+                remaining -= vl;
+            }
+            __asm__ volatile("vfmv.f.s %0, v0" : "=f"(x[k-1]));
+            #else
             lw = k - 6;
             temp = x[k-1];
             for ( j=4 ; j<n ; j=j+5 ) {
                 temp -= x[lw]*y[j];
                 lw++;
             }
+            #endif
             x[k-1] = y[4]*temp;
         }
     }
@@ -901,16 +985,60 @@ e_fp linear_recurrence(loops_params *p) {
      *        W(i)= W(i)  + B(i,k) * W(i-k)
      *  6 CONTINUE
      */
-
     for ( i=0 ; i<n ; i++ ) {
 		w[i]=FPCONST(0.0100);
 	}
     for ( l=1 ; l<=loop ; l++ ) {
         for ( i=1 ; i<n ; i++ ) {
+            #if USE_RVV
+            //FIXME: This code was ported incorrectly and is missing the += to add
+            // W(i) to itself in the inner loop instead of repeatedly reassigning it.
+            // Once the output checks are updated, vectorizing the inner loop will be more efficient.
+            // If !isfinite check changed, also fix sum loop.
+            w[i] = b[(i-1)*n+i] * w[0];
+			if (!th_isfinite(w[i])) w[i]=b[(i-1)*n+i]; /* avoid potential inf */
+
+            /*
+            // Cannot vectorize over i because each step uses all previous w[i]
+            // Instead, vectorize over k to perform sum of products
+            e_fp* bstart = b+i, wstart = w+i-1;
+            uint32_t vl;
+            e_fp sum;
+            const int bstride = n*sizeof(e_fp), wstride = -sizeof(e_fp); // Strides for k*n, -k (in bytes) as k increments
+            for (k=0; k<i; k+=vl) {
+                __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, mu" : "=r"(vl) : "r"(k-i));
+                // Multiply inputs from b and w
+                __asm__ volatile("vlse32.v v0, (%0), %1" : : "r"(b+i), "r"(bstride)); //b[k*n+i]
+                __asm__ volatile("vlse32.v v16, (%0), %1" : : "r"(w), "r"(wstride)); //w[(i-k)-1]
+                __asm__ volatile("vfmul.vv v16, v16, v0");
+
+                // Sum
+                // Currently the result and not addend is overwritten if infinite.
+                // Need to check every sum in case one is denormal.
+                // If this were changed, would do a masked vmv and vfredosum instead of loop.
+                uint32_t curr_b_elem = 0;
+                for (int j = 0; j<vl; j++) {
+                    __asm__ volatile("vfmv.f.s %0, v16" : "=f"(sum));
+                    w[i] += sum;
+                    if (!th_isfinite(w[i])) {
+                        __asm__ volatile("vslidedown.vx v0, v0, %0") : "=r"(j-curr_b_elem);
+                        __asm__ volatile("vfmv.f.s %0, v0" : "=f"(sum));
+                        w[i] = sum;
+                        curr_b_elem = j;
+                    }
+                    // Get next term for sum
+                    __asm__ volatile("vslidedown.vi v16, v16, 1");
+                }
+                
+                wstart -= vl;
+                bstart += vl*k;
+            }*/
+            #else
             for ( k=0 ; k<i ; k++ ) {
                 w[i] = b[k*n+i] * w[(i-k)-1];
 				if (!th_isfinite(w[i])) w[i]=b[k*n+i]; /* avoid potential inf */
             }
+            #endif
         }
 		w[0]=b[k*n] * w[n-1];
     }
@@ -947,11 +1075,54 @@ e_fp state_fragment(loops_params *p) {
      */
     for ( l=1 ; l<=loop ; l++ ) {
       reinit_vec(p,u,n+6);
+      #if USE_RVV
+      uint32_t vl;
+      float u1, u2, u3;
+      for (k=0; k<n; k+=vl) {
+        __asm__ volatile ("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(n-k));
+
+        // u[k] + r*( z[k] + r*y[k] )
+        __asm__ volatile ("vle32.v v0, (%0)" : : "r"(y+k)); //y[k]
+        __asm__ volatile ("vle32.v v8, (%0)" : : "r"(z+k)); //z[k]
+        __asm__ volatile ("vfmadd.vf v0, v8, %0" : : "f"(r)); //A= z[k]+r*y[k]
+        __asm__ volatile ("vle32.v v16, (%0)" : : "r"(u+k)); //u[k]
+        __asm__ volatile ("vfmadd.vf v0, v16, %0" : : "f"(r)); //B= u[k]+r*A
+
+        // + t*( u[k+3] + r*(u[k+2] + r*u[k+1])
+        // Load last scalar of u[k+1] vector and use u[k] for the rest
+        // Alt implementation: Load u+vl to u+vl+5 as a vector and slide appropriate parts
+        // but requires two slide operations for u+#
+        u1 = u[k+vl];
+        __asm__ volatile ("vfslide1down.vf v16, v16, (%0)" : : "f"(u1)); //u[k+1]
+        u2 = u[k+vl+1];
+        __asm__ volatile ("vfslide1down.vf v24, v16, (%0)" : : "f"(u2)); //u[k+2]
+        __asm__ volatile ("vfmadd.vf v16, v24, %0" : : "f"(r)); // C= u[k+2] + r*u[k+1]
+        u3 = u[k+vl+2];
+        __asm__ volatile ("vfslide1down.vf v8, v24, (%0)" : : "f"(u3)); //u[k+3]
+        __asm__ volatile ("vfmadd.vf v16, v8, %0" : : "f"(r)); // D= u[k+3]+r*C
+        __asm__ volatile ("vfmacc.vf v0, v16, %0" : : "f"(t)); // B+= t*D
+
+        
+        // +t*( u[k+6] + r*( u[k+5] + r*u[k+4])))
+        u1 = u[k+vl+3];
+        __asm__ volatile ("vfslide1down.vf v8, v8, (%0)" : : "f"(u1)); //u[k+4]
+        u2 = u[k+vl+4];
+        __asm__ volatile ("vfslide1down.vf v16, v8, (%0)" : : "f"(u2)); //u[k+5]
+        __asm__ volatile ("vfmadd.vf v8, v16, %0" : : "f"(r)); // E= u[k+5] + r*u[k+4]
+        u3 = u[k+vl+5];
+        __asm__ volatile ("vfslide1down.vf v24, v16, (%0)" : : "f"(u3)); //u[k+6]
+        __asm__ volatile ("vfmacc.vf v24, v8, %0" : : "f"(r)); // F= u[k+6] + r*E
+        __asm__ volatile ("vfmacc.vf v0, v24, %0" : : "f"(t)); // B+= t*F
+
+        __asm__ volatile ("vse32.v v0, (%0)" : : "r"(x+k)); // x[k]= B
+      }
+      #else
       for ( k=0 ; k<n ; k++ ) {
 	x[k] = u[k] + r*( z[k] + r*y[k] ) +
 	  t*( u[k+3] + r*( u[k+2] + r*u[k+1] ) +
 	      t*( u[k+6] + r*( u[k+5] + r*u[k+4] ) ) );
       }
+      #endif
       ret+=get_array_feedback(x,n);
     }
 
@@ -1230,6 +1401,48 @@ e_fp integrate_predictors(loops_params *p) {
 
     for ( l=1 ; l<=loop ; l++ ) {
 		reinit_vec(p,dm,30); /* reinit to make sure each loop needs to be executed */
+        #if USE_RVV
+        // Vectors run over loop iterations instead of within them to allow longer vectors for small elements
+        size_t vl;
+        vfloat32m8_t sum, pxtemp, pxadd;
+        vfloat32m1_t vret =  __riscv_vfmv_s_f_f32m1(ret, vl);
+        for (i=0; i<n; i+=vl) {
+            vl = _riscv_vsetvl_e32m8(n);
+            // Strided load from px[i*13+#]
+            sum = __riscv_vlse32_v_f32m8(px+i*13+12, 13, vl);
+            sum = __riscv_vfmul_vf_f32m8(sum, dm[28], vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+11, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[27], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+10, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[26], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+9, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[25], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+8, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[24], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+7, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[23], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+6, 13, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[22], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+5, 13, vl);
+            pxadd = __riscv_vlse32_v_f32m8(px+i*13+4, 13, vl);
+            pxtemp = __riscv_vfadd_vv_f32m8(pxtemp, pxadd, vl);
+            sum = __riscv_vfmacc_vf_f32m8(sum, dm[0], pxtemp, vl);
+
+            pxtemp = __riscv_vlse32_v_f32m8(px+i*13+2, 13, vl);
+            sum = __riscv_vfadd_vv_f32m8(pxtemp, sum);
+
+            __riscv_vsse32_v_f32m8(px+i*13, 13, sum, vl);
+            vret = __riscv_vfredosum_vs_f32m8_f32m1(sum, vret, vl);
+        }
+        ret = __riscv_vfmv_f_s_f32m1_f32(vret);
+        #else
         for ( i=0 ; i<n ; i++ ) {
             px[i*13] = dm[28]*px[i*13+12] + dm[27]*px[i*13+11] + dm[26]*px[i*13+10] +
                        dm[25]*px[i*13+ 9] + dm[24]*px[i*13+ 8] + dm[23]*px[i*13+ 7] +
@@ -1237,6 +1450,7 @@ e_fp integrate_predictors(loops_params *p) {
         }
 		for ( i=0 ; i<n ; i++ )
 			ret+=px[i*13];
+        #endif
 		ret/=(e_fp)n; /* feedback to make sure all loops get executed */
 #if (BMDEBUG && DEBUG_ACCURATE_BITS)
 	th_printf("\nipred %d:",debug_counter++);
@@ -1284,6 +1498,81 @@ e_fp difference_predictors(loops_params *p) {
 
     for ( l=1 ; l<=loop ; l++ ) {
 		reinit_vec(p,cx,n); /* initializers to make sure all loops need to be executed */
+
+        #if USE_RVV
+        // No vectorization within loop
+        // Each temp. var. is a running difference of px elements, and px is updated with the partial results.
+        // Each inner loop is self-contained.
+        size_t vl;
+        e_fp *vec_start = px+4;
+        
+        /*__asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl): "r"(n));
+        int body_loops = n/vl;
+        e_fp* body_end = vec_start + 14*vl*body_loops;
+        int tail_loops = n%vl;
+        e_fp* tail_end = vec_start + 14*n*body_loops;
+
+        while (vec_start<body_end) {*/
+
+        for (i=0; i<n; i+=vl) {
+            __asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl): "r"(n-i))
+            temp_addr = vec_start;
+
+            __asm__ volatile("vle32.v v0, %0" : : "r"(cx)); // ar
+
+            // Unroll the potential loop to use different registers
+            __asm__ volatile("vlse32.v v8, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+4]
+            __asm__ volatile("vfsub.vv v16, v0, v8"); // br = ar-px[14*i+4]
+            __asm__ volatile("vsse32.v v0, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+4] = ar
+            temp_addr++;
+            
+            // Each address is loaded once in original code, so slidedown won't help here.
+            __asm__ volatile("vlse32.v v24, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+5]
+            __asm__ volatile("vfsub.vv v8, v16, v24"); // cr = br-px[14*i+5]
+            __asm__ volatile("vsse32.v v16, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+5] = br
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v0, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+6]
+            __asm__ volatile("vfsub.vv v24, v8, v0"); // ar = cr-px[14*i+6]
+            __asm__ volatile("vsse32.v v8, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+6] = cr
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v16, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+7]
+            __asm__ volatile("vfsub.vv v0, v24, v16"); // br = ar-px[14*i+7]
+            __asm__ volatile("vsse32.v v24, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+7] = ar
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v8, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+8]
+            __asm__ volatile("vfsub.vv v16, v0, v8"); // cr = br-px[14*i+8]
+            __asm__ volatile("vsse32.v v0, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+8] = br
+            temp_addr++;
+            
+            __asm__ volatile("vlse32.v v24, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+9]
+            __asm__ volatile("vfsub.vv v8, v16, v24"); // ar = cr-px[14*i+9]
+            __asm__ volatile("vsse32.v v16, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+9] = cr
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v0, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+10]
+            __asm__ volatile("vfsub.vv v24, v8, v0"); // br = ar-px[14*i+10]
+            __asm__ volatile("vsse32.v v8, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+10] = ar
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v16, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+11]
+            __asm__ volatile("vfsub.vv v0, v24, v16"); // cr = br-px[14*i+11]
+            __asm__ volatile("vsse32.v v24, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+11] = br
+            temp_addr++;
+
+            __asm__ volatile("vlse32.v v8, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+12]
+            __asm__ volatile("vfsub.vv v16, v0, v8"); // cr-px[14*i+12]
+            __asm__ volatile("vsse32.v v0, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+12] = cr
+            temp_addr++;
+            
+            __asm__ volatile("vsse32.v v16, %0, %1" : : "A"(temp_addr), "r"(14)); // px[14*i+13] = cr-px[14*i+12]
+
+            vec_start += 14*vl;
+        }
+        
+        #else
         for ( i=0 ; i<n ; i++ ) {
             ar        =      cx[i];
             br        = ar - px[14*i+ 4];
@@ -1305,6 +1594,7 @@ e_fp difference_predictors(loops_params *p) {
             px[14*i+13] = cr - px[14*i+12];
             px[14*i+12] = cr;
         }
+        #endif
 #if (BMDEBUG && DEBUG_ACCURATE_BITS)
 	th_printf("\npred %d:",debug_counter++);
 	th_print_fp(px[0]);
@@ -1363,9 +1653,43 @@ e_fp first_dif(loops_params *p) {
 	reinit_vec(p,x,n);
     for ( l=0 ; l<=loop ; l++ ) {
 		reinit_vec(p,y,n+1);
+
+        #if USE_RVV
+        if (n!=0) { // Cover edge case to allow loading y[0]
+
+        size_t vl;
+        __asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl): "r"(n));
+        // Put first element into y[k] vector
+        __asm__ volatile("vfmv.s.f v8, (%0)" : : "r"(y[0]));
+
+        // Set up body and tail to remove extra vsetvli and the last slidedown
+        unsigned int tail = n%vl;
+        size_t slidedown = vl-1;
+
+        for (k=0; k<n-tail; k+=vl) {
+            __asm__ volatile("vle32.v v0, (%0)" : : "r"(y+k+1)); //y[k+1]
+            // Move the rest of the y[k] vector
+            __asm__ volatile("vslideup.vi v8, v0, 1");
+            __asm__ volatile("vfsub.vv v16, v0, v8");
+            __asm__ volatile("vse32.v v16, (%0)" : : "r"(x+k));
+            // Put first element into y[k] vector
+            __asm__ volatile("vslidedown.vx v8, v0, %0" : : "r" (slidedown));
+        }
+
+        // Tail
+        __asm__ volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl): "r"(tail));
+        __asm__ volatile("vle32.v v0, (%0)" : : "r"(y+k+1)); //y[k+1]
+        __asm__ volatile("vslideup.vi v8, v0, 1");
+        // Move the rest of the y[k] vector
+        __asm__ volatile("vfsub.vv v16, v0, v8");
+        __asm__ volatile("vse32.v v16, (%0)" : : "r"(x+k));
+        }
+
+        #else
         for ( k=0 ; k<n ; k++ ) {
             x[k]+= y[k+1] - y[k];
         }
+        #endif
     }
 
 	return get_array_feedback(x,n);
