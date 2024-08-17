@@ -3,11 +3,12 @@
 
 All EEMBC Benchmark Software are products of EEMBC
 and are provided under the terms of the EEMBC Benchmark License Agreements.
-The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members
-and is protected under all applicable laws, including all applicable copyright laws.
-If you received this EEMBC Benchmark Software without having
-a currently effective EEMBC Benchmark License Agreement, you must discontinue use.
-Please refer to LICENSE.md for the specific license agreement that pertains to this Benchmark Software.
+The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC
+and its Members and is protected under all applicable laws, including all
+applicable copyright laws. If you received this EEMBC Benchmark Software without
+having a currently effective EEMBC Benchmark License Agreement, you must
+discontinue use. Please refer to LICENSE.md for the specific license agreement
+that pertains to this Benchmark Software.
 */
 
 /*==============================================================================
@@ -72,8 +73,8 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 /* Include auto-config file to find out which system include files we need. */
 #include "algo.h"
 
-#include "jconfig.h"        /* auto configuration options */
-#define JCONFIG_INCLUDED    /* so that jpeglib.h doesn't do it again */
+#include "jconfig.h"     /* auto configuration options */
+#define JCONFIG_INCLUDED /* so that jpeglib.h doesn't do it again */
 
 /*
  * We need the NULL macro and size_t typedef.
@@ -99,18 +100,21 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 #ifdef NEED_BSD_STRINGS
 
 #include <strings.h>
-#define MEMZERO(target,size)    bzero((void *)(target), (size_t)(size))
-#define MEMCOPY(dest,src,size)    bcopy((const void *)(src), (void *)(dest), (size_t)(size))
+#define MEMZERO(target, size) bzero((void *)(target), (size_t)(size))
+#define MEMCOPY(dest, src, size)                                               \
+  bcopy((const void *)(src), (void *)(dest), (size_t)(size))
 
 #else /* not BSD, assume ANSI/SysV string lib */
 
 #include <string.h>
 #ifdef USE_RVV
-#define MEMZERO(target,size)    vec_memset((void *)(target), 0, (size_t)(size))
-#define MEMCOPY(dest,src,size)    vec_memcpy((void *)(dest), (const void *)(src), (size_t)(size))
+#define MEMZERO(target, size) vec_memset((void *)(target), 0, (size_t)(size))
+#define MEMCOPY(dest, src, size)                                               \
+  vec_memcpy((void *)(dest), (const void *)(src), (size_t)(size))
 #else
-#define MEMZERO(target,size)    memset((void *)(target), 0, (size_t)(size))
-#define MEMCOPY(dest,src,size)    memcpy((void *)(dest), (const void *)(src), (size_t)(size))
+#define MEMZERO(target, size) memset((void *)(target), 0, (size_t)(size))
+#define MEMCOPY(dest, src, size)                                               \
+  memcpy((void *)(dest), (const void *)(src), (size_t)(size))
 #endif
 #endif
 
@@ -122,7 +126,7 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  * we always use this SIZEOF() macro in place of using sizeof() directly.
  */
 
-#define SIZEOF(object)    ((size_t) sizeof(object))
+#define SIZEOF(object) ((size_t)sizeof(object))
 
 /*
  * The modules that use fread() and fwrite() always invoke them through
@@ -131,10 +135,9 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  */
 
 size_t cjpeg_fread(void *buf, size_t sizeofbuf, cjpparam_t *params);
-size_t cjpeg_fwrite(const void *buf, size_t sizeofbuf, cjpparam_t *params );
+size_t cjpeg_fwrite(const void *buf, size_t sizeofbuf, cjpparam_t *params);
 
-#define JFREAD(file,buf,sizeofbuf)  \
-  ((size_t) cjpeg_fread((void *) (buf), (size_t) (sizeofbuf), (file)))
-#define JFWRITE(file,buf,sizeofbuf)  \
-  ((size_t) cjpeg_fwrite((const void *) (buf), (size_t) (sizeofbuf), (file)))
-
+#define JFREAD(file, buf, sizeofbuf)                                           \
+  ((size_t)cjpeg_fread((void *)(buf), (size_t)(sizeofbuf), (file)))
+#define JFWRITE(file, buf, sizeofbuf)                                          \
+  ((size_t)cjpeg_fwrite((const void *)(buf), (size_t)(sizeofbuf), (file)))

@@ -3,11 +3,12 @@
 
 All EEMBC Benchmark Software are products of EEMBC
 and are provided under the terms of the EEMBC Benchmark License Agreements.
-The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members
-and is protected under all applicable laws, including all applicable copyright laws.
-If you received this EEMBC Benchmark Software without having
-a currently effective EEMBC Benchmark License Agreement, you must discontinue use.
-Please refer to LICENSE.md for the specific license agreement that pertains to this Benchmark Software.
+The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC
+and its Members and is protected under all applicable laws, including all
+applicable copyright laws. If you received this EEMBC Benchmark Software without
+having a currently effective EEMBC Benchmark License Agreement, you must
+discontinue use. Please refer to LICENSE.md for the specific license agreement
+that pertains to this Benchmark Software.
 */
 
 /*==============================================================================
@@ -66,28 +67,26 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 
 #include <th_file.h>
 
+#include "jdct.h" /* Private declarations for DCT subsystem */
 #include "jpeglib.h"
-#include "jdct.h"        /* Private declarations for DCT subsystem */
-
 
 /* Private subobject for this module */
 
 typedef struct {
-    struct jpeg_forward_dct pub;    /* public fields */
+  struct jpeg_forward_dct pub; /* public fields */
 
-    /* Pointer to the DCT routine actually in use */
-    forward_DCT_method_ptr do_dct;
+  /* Pointer to the DCT routine actually in use */
+  forward_DCT_method_ptr do_dct;
 
-    /* The actual post-DCT divisors --- not identical to the quant table
-     * entries, because of scaling (especially for an unnormalized DCT).
-     * Each table is given in normal array order.
-     */
-    DCTELEM * divisors[NUM_QUANT_TBLS];
+  /* The actual post-DCT divisors --- not identical to the quant table
+   * entries, because of scaling (especially for an unnormalized DCT).
+   * Each table is given in normal array order.
+   */
+  DCTELEM *divisors[NUM_QUANT_TBLS];
 
 } my_fdct_controller;
 
-typedef my_fdct_controller * my_fdct_ptr;
-
+typedef my_fdct_controller *my_fdct_ptr;
 
 /*
  * Initialize for a processing pass.
@@ -99,48 +98,45 @@ typedef my_fdct_controller * my_fdct_ptr;
  */
 
 METHODDEF(void)
-start_pass_fdctmgr (j_compress_ptr cinfo)
-{
-    my_fdct_ptr fdct = (my_fdct_ptr) cinfo->fdct;
-    int ci, qtblno, i;
-    jpeg_component_info *compptr;
-    JQUANT_TBL * qtbl;
-    DCTELEM * dtbl;
+start_pass_fdctmgr(j_compress_ptr cinfo) {
+  my_fdct_ptr fdct = (my_fdct_ptr)cinfo->fdct;
+  int ci, qtblno, i;
+  jpeg_component_info *compptr;
+  JQUANT_TBL *qtbl;
+  DCTELEM *dtbl;
 
-    for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
-            ci++, compptr++) {
-        qtblno = compptr->quant_tbl_no;
-        /* Make sure specified quantization table is present */
-        if (qtblno < 0 || qtblno >= NUM_QUANT_TBLS ||
-                cinfo->quant_tbl_ptrs[qtblno] == NULL)
-            ERREXIT1(cinfo, JERR_NO_QUANT_TABLE, qtblno);
-        qtbl = cinfo->quant_tbl_ptrs[qtblno];
-        /* Compute divisors for this quant table */
-        /* We may do this more than once for same table, but it's not a big deal */
-        switch (cinfo->dct_method) {
+  for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
+       ci++, compptr++) {
+    qtblno = compptr->quant_tbl_no;
+    /* Make sure specified quantization table is present */
+    if (qtblno < 0 || qtblno >= NUM_QUANT_TBLS ||
+        cinfo->quant_tbl_ptrs[qtblno] == NULL)
+      ERREXIT1(cinfo, JERR_NO_QUANT_TABLE, qtblno);
+    qtbl = cinfo->quant_tbl_ptrs[qtblno];
+    /* Compute divisors for this quant table */
+    /* We may do this more than once for same table, but it's not a big deal */
+    switch (cinfo->dct_method) {
 #ifdef DCT_ISLOW_SUPPORTED
-        case JDCT_ISLOW:
-            /* For LL&M IDCT method, divisors are equal to raw quantization
-             * coefficients multiplied by 8 (to counteract scaling).
-             */
-            if (fdct->divisors[qtblno] == NULL) {
-                fdct->divisors[qtblno] = (DCTELEM *)
-                                         (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
-                                                 DCTSIZE2 * SIZEOF(DCTELEM));
-            }
-            dtbl = fdct->divisors[qtblno];
-            for (i = 0; i < DCTSIZE2; i++) {
-                dtbl[i] = ((DCTELEM) qtbl->quantval[i]) << 3;
-            }
-            break;
+    case JDCT_ISLOW:
+      /* For LL&M IDCT method, divisors are equal to raw quantization
+       * coefficients multiplied by 8 (to counteract scaling).
+       */
+      if (fdct->divisors[qtblno] == NULL) {
+        fdct->divisors[qtblno] = (DCTELEM *)(*cinfo->mem->alloc_small)(
+            (j_common_ptr)cinfo, JPOOL_IMAGE, DCTSIZE2 * SIZEOF(DCTELEM));
+      }
+      dtbl = fdct->divisors[qtblno];
+      for (i = 0; i < DCTSIZE2; i++) {
+        dtbl[i] = ((DCTELEM)qtbl->quantval[i]) << 3;
+      }
+      break;
 #endif
-        default:
-            ERREXIT(cinfo, JERR_NOT_COMPILED);
-            break;
-        }
+    default:
+      ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
     }
+  }
 }
-
 
 /*
  * Perform forward DCT on one or more blocks of a component.
@@ -151,159 +147,161 @@ start_pass_fdctmgr (j_compress_ptr cinfo)
  */
 
 METHODDEF(void)
-forward_DCT (j_compress_ptr cinfo, jpeg_component_info * compptr,
-             JSAMPARRAY sample_data, JBLOCKROW coef_blocks,
-             JDIMENSION start_row, JDIMENSION start_col,
-             JDIMENSION num_blocks)
+forward_DCT(j_compress_ptr cinfo, jpeg_component_info *compptr,
+            JSAMPARRAY sample_data, JBLOCKROW coef_blocks, JDIMENSION start_row,
+            JDIMENSION start_col, JDIMENSION num_blocks)
 /* This version is used for integer DCT implementations. */
 {
-    /* This routine is heavily used, so it's worth coding it tightly. */
-    my_fdct_ptr fdct = (my_fdct_ptr) cinfo->fdct;
-    forward_DCT_method_ptr do_dct = fdct->do_dct;
-    DCTELEM * divisors = fdct->divisors[compptr->quant_tbl_no];
-    DCTELEM workspace[DCTSIZE2];    /* work area for FDCT subroutine */
-    JDIMENSION bi;
+  /* This routine is heavily used, so it's worth coding it tightly. */
+  my_fdct_ptr fdct = (my_fdct_ptr)cinfo->fdct;
+  forward_DCT_method_ptr do_dct = fdct->do_dct;
+  DCTELEM *divisors = fdct->divisors[compptr->quant_tbl_no];
+  DCTELEM workspace[DCTSIZE2]; /* work area for FDCT subroutine */
+  JDIMENSION bi;
 
-    sample_data += start_row;    /* fold in the vertical offset once */
+  sample_data += start_row; /* fold in the vertical offset once */
 
-    for (bi = 0; bi < num_blocks; bi++, start_col += DCTSIZE) {
-        /* Load data into workspace, applying unsigned->signed conversion */
-        {   register DCTELEM *workspaceptr;
-            register JSAMPROW elemptr;
-            register int elemr;
+  for (bi = 0; bi < num_blocks; bi++, start_col += DCTSIZE) {
+    /* Load data into workspace, applying unsigned->signed conversion */
+    {
+      register DCTELEM *workspaceptr;
+      register JSAMPROW elemptr;
+      register int elemr;
 
-            workspaceptr = workspace;
+      workspaceptr = workspace;
 
 #if USE_RVV
 #if DCTSIZE == 8
-            for (elemr = 0; elemr < DCTSIZE; elemr++) {
-                elemptr = sample_data[elemr] + start_col;
-                size_t vl = __riscv_vsetvl_e32m8(DCTSIZE);
-                vuint8m2_t s8 = __riscv_vle8_v_u8m2(elemptr, vl);
-                vl = __riscv_vsetvl_e32m8(8); // should not be necessary
-                vint32m8_t s32 = __riscv_vreinterpret_v_u32m8_i32m8(__riscv_vzext_vf4_u32m8(s8, vl));
-                vint32m8_t r = __riscv_vsub_vx_i32m8(s32, CENTERJSAMPLE, vl);
-                __riscv_vse32_v_i32m8(workspaceptr, r, vl);
-                workspaceptr += DCTSIZE;
-            }
+      for (elemr = 0; elemr < DCTSIZE; elemr++) {
+        elemptr = sample_data[elemr] + start_col;
+        size_t vl = __riscv_vsetvl_e32m8(DCTSIZE);
+        vuint8m2_t s8 = __riscv_vle8_v_u8m2(elemptr, vl);
+        vl = __riscv_vsetvl_e32m8(8); // should not be necessary
+        vint32m8_t s32 =
+            __riscv_vreinterpret_v_u32m8_i32m8(__riscv_vzext_vf4_u32m8(s8, vl));
+        vint32m8_t r = __riscv_vsub_vx_i32m8(s32, CENTERJSAMPLE, vl);
+        __riscv_vse32_v_i32m8(workspaceptr, r, vl);
+        workspaceptr += DCTSIZE;
+      }
 #else
 #error "Unsupported DCTSIZE"
 #endif
 #else
-            for (elemr = 0; elemr < DCTSIZE; elemr++) {
-                elemptr = sample_data[elemr] + start_col;
-#if DCTSIZE == 8        /* unroll the inner loop */
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+      for (elemr = 0; elemr < DCTSIZE; elemr++) {
+        elemptr = sample_data[elemr] + start_col;
+#if DCTSIZE == 8 /* unroll the inner loop */
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
 #else
-                {
-                    register int elemc;
-                    for (elemc = DCTSIZE; elemc > 0; elemc--) {
-                        *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-                    }
-                }
-#endif
-            }
-#endif
+        {
+          register int elemc;
+          for (elemc = DCTSIZE; elemc > 0; elemc--) {
+            *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
+          }
         }
+#endif
+      }
+#endif
+    }
 
-        /* Perform the DCT */
-        (*do_dct) (workspace);
+    /* Perform the DCT */
+    (*do_dct)(workspace);
 
-        /* Quantize/descale the coefficients, and store into coef_blocks[] */
-        {   register DCTELEM temp, qval;
-            register int i;
-            register JCOEFPTR output_ptr = coef_blocks[bi];
+    /* Quantize/descale the coefficients, and store into coef_blocks[] */
+    {
+      register DCTELEM temp, qval;
+      register int i;
+      register JCOEFPTR output_ptr = coef_blocks[bi];
 
 #if USE_RVV
-            for (i = 0; i < DCTSIZE2; ) {
-                size_t vl = __riscv_vsetvl_e32m8(DCTSIZE2 - i);
-                vint32m8_t qvals = __riscv_vle32_v_i32m8(&divisors[i], vl);
-                vint32m8_t temps = __riscv_vle32_v_i32m8(&workspace[i], vl);
-                vbool4_t negs = __riscv_vmslt_vx_i32m8_b4(temps, 0, vl);
-                temps = __riscv_vneg_v_i32m8_m(negs, temps, vl);
-                vint32m8_t shr = __riscv_vsra_vx_i32m8(qvals, 1, vl);
-                temps = __riscv_vadd_vv_i32m8(temps, shr, vl);
-                temps = __riscv_vdiv_vv_i32m8(temps, qvals, vl);
-                temps = __riscv_vneg_v_i32m8_m(negs, temps, vl);
-                vint16m4_t n = __riscv_vncvt_x_x_w_i16m4(temps, vl);
-                __riscv_vse16_v_i16m4(&output_ptr[i], n, vl);
-                i += vl;
-            }
+      for (i = 0; i < DCTSIZE2;) {
+        size_t vl = __riscv_vsetvl_e32m8(DCTSIZE2 - i);
+        vint32m8_t qvals = __riscv_vle32_v_i32m8(&divisors[i], vl);
+        vint32m8_t temps = __riscv_vle32_v_i32m8(&workspace[i], vl);
+        vbool4_t negs = __riscv_vmslt_vx_i32m8_b4(temps, 0, vl);
+        temps = __riscv_vneg_v_i32m8_m(negs, temps, vl);
+        vint32m8_t shr = __riscv_vsra_vx_i32m8(qvals, 1, vl);
+        temps = __riscv_vadd_vv_i32m8(temps, shr, vl);
+        temps = __riscv_vdiv_vv_i32m8(temps, qvals, vl);
+        temps = __riscv_vneg_v_i32m8_m(negs, temps, vl);
+        vint16m4_t n = __riscv_vncvt_x_x_w_i16m4(temps, vl);
+        __riscv_vse16_v_i16m4(&output_ptr[i], n, vl);
+        i += vl;
+      }
 #else
-            for (i = 0; i < DCTSIZE2; i++) {
-                qval = divisors[i];
-                temp = workspace[i];
-                /* Divide the coefficient value by qval, ensuring proper rounding.
-                 * Since C does not specify the direction of rounding for negative
-                 * quotients, we have to force the dividend positive for portability.
-                 *
-                 * In most files, at least half of the output values will be zero
-                 * (at default quantization settings, more like three-quarters...)
-                 * so we should ensure that this case is fast.  On many machines,
-                 * a comparison is enough cheaper than a divide to make a special test
-                 * a win.  Since both inputs will be nonnegative, we need only test
-                 * for a < b to discover whether a/b is 0.
-                 * If your machine's division is fast enough, define FAST_DIVIDE.
-                 */
+      for (i = 0; i < DCTSIZE2; i++) {
+        qval = divisors[i];
+        temp = workspace[i];
+        /* Divide the coefficient value by qval, ensuring proper rounding.
+         * Since C does not specify the direction of rounding for negative
+         * quotients, we have to force the dividend positive for portability.
+         *
+         * In most files, at least half of the output values will be zero
+         * (at default quantization settings, more like three-quarters...)
+         * so we should ensure that this case is fast.  On many machines,
+         * a comparison is enough cheaper than a divide to make a special test
+         * a win.  Since both inputs will be nonnegative, we need only test
+         * for a < b to discover whether a/b is 0.
+         * If your machine's division is fast enough, define FAST_DIVIDE.
+         */
 #ifdef FAST_DIVIDE
-#define DIVIDE_BY(a,b)    a /= b
+#define DIVIDE_BY(a, b) a /= b
 #else
-#define DIVIDE_BY(a,b)    if (a >= b) a /= b; else a = 0
+#define DIVIDE_BY(a, b)                                                        \
+  if (a >= b)                                                                  \
+    a /= b;                                                                    \
+  else                                                                         \
+    a = 0
 #endif
-                if (temp < 0) {
-                    temp = -temp;
-                    temp += qval>>1;    /* for rounding */
-                    DIVIDE_BY(temp, qval);
-                    temp = -temp;
-                } else {
-                    temp += qval>>1;    /* for rounding */
-                    DIVIDE_BY(temp, qval);
-                }
-            }
-#endif
+        if (temp < 0) {
+          temp = -temp;
+          temp += qval >> 1; /* for rounding */
+          DIVIDE_BY(temp, qval);
+          temp = -temp;
+        } else {
+          temp += qval >> 1; /* for rounding */
+          DIVIDE_BY(temp, qval);
         }
+      }
+#endif
     }
+  }
 }
-
-
 
 /*
  * Initialize FDCT manager.
  */
 
 GLOBAL(void)
-jinit_forward_dct (j_compress_ptr cinfo)
-{
-    my_fdct_ptr fdct;
-    int i;
+jinit_forward_dct(j_compress_ptr cinfo) {
+  my_fdct_ptr fdct;
+  int i;
 
-    fdct = (my_fdct_ptr)
-           (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
-                                       SIZEOF(my_fdct_controller));
-    cinfo->fdct = (struct jpeg_forward_dct *) fdct;
-    fdct->pub.start_pass = start_pass_fdctmgr;
+  fdct = (my_fdct_ptr)(*cinfo->mem->alloc_small)(
+      (j_common_ptr)cinfo, JPOOL_IMAGE, SIZEOF(my_fdct_controller));
+  cinfo->fdct = (struct jpeg_forward_dct *)fdct;
+  fdct->pub.start_pass = start_pass_fdctmgr;
 
-    switch (cinfo->dct_method) {
+  switch (cinfo->dct_method) {
 #ifdef DCT_ISLOW_SUPPORTED
-    case JDCT_ISLOW:
-        fdct->pub.forward_DCT = forward_DCT;
-        fdct->do_dct = jpeg_fdct_islow;
-        break;
+  case JDCT_ISLOW:
+    fdct->pub.forward_DCT = forward_DCT;
+    fdct->do_dct = jpeg_fdct_islow;
+    break;
 #endif
-    default:
-        ERREXIT(cinfo, JERR_NOT_COMPILED);
-        break;
-    }
+  default:
+    ERREXIT(cinfo, JERR_NOT_COMPILED);
+    break;
+  }
 
-    /* Mark divisor tables unallocated */
-    for (i = 0; i < NUM_QUANT_TBLS; i++) {
-        fdct->divisors[i] = NULL;
-    }
+  /* Mark divisor tables unallocated */
+  for (i = 0; i < NUM_QUANT_TBLS; i++) {
+    fdct->divisors[i] = NULL;
+  }
 }
