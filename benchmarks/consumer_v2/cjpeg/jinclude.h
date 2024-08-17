@@ -1,12 +1,12 @@
 /*
-(C) 2014 EEMBC(R).  All rights reserved.                            
+(C) 2014 EEMBC(R).  All rights reserved.
 
-All EEMBC Benchmark Software are products of EEMBC 
-and are provided under the terms of the EEMBC Benchmark License Agreements.  
-The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members 
-and is protected under all applicable laws, including all applicable copyright laws.  
-If you received this EEMBC Benchmark Software without having 
-a currently effective EEMBC Benchmark License Agreement, you must discontinue use. 
+All EEMBC Benchmark Software are products of EEMBC
+and are provided under the terms of the EEMBC Benchmark License Agreements.
+The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members
+and is protected under all applicable laws, including all applicable copyright laws.
+If you received this EEMBC Benchmark Software without having
+a currently effective EEMBC Benchmark License Agreement, you must discontinue use.
 Please refer to LICENSE.md for the specific license agreement that pertains to this Benchmark Software.
 */
 
@@ -17,15 +17,15 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  *
  *  EEMBC : Consumer Subcommittee
  *
- * AUTHOR : 
- *          Modified for Multi Instance Test Harness by Ron Olson, 
+ * AUTHOR :
+ *          Modified for Multi Instance Test Harness by Ron Olson,
  *          IBM Corporation
  *
  *    CVS : $Revision: 1.1 $
  *          $Date: 2004/05/10 22:36:04 $
  *          $Author: rick $
  *          $Source: D:/cvs/eembc2/consumer/cjpegv2/jinclude.h,v $
- *          
+ *
  * NOTE   :
  *
  *------------------------------------------------------------------------------
@@ -47,8 +47,8 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  *
  *
  *------------------------------------------------------------------------------
- * Other Copyright Notice (if any): 
- * 
+ * Other Copyright Notice (if any):
+ *
  * For conditions of distribution and use, see the accompanying README file.
  * ===========================================================================*/
 /*

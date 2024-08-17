@@ -89,7 +89,7 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  */
 
 #if DCTSIZE != 8
-  Sorry, this code only copes with 8x8 DCTs. /* deliberate syntax err */
+Sorry, this code only copes with 8x8 DCTs. /* deliberate syntax err */
 #endif
 
 
@@ -246,324 +246,324 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 GLOBAL(void)
 jpeg_fdct_islow (DCTELEM * data)
 {
-  e_s32 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
-  e_s32 tmp10, tmp11, tmp12, tmp13;
-  e_s32 z1, z2, z3, z4, z5;
-  DCTELEM *dataptr;
-  int ctr;
-  SHIFT_TEMPS
+    e_s32 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+    e_s32 tmp10, tmp11, tmp12, tmp13;
+    e_s32 z1, z2, z3, z4, z5;
+    DCTELEM *dataptr;
+    int ctr;
+    SHIFT_TEMPS
 
 #if USE_RVV
-  /* Pass 1: process rows. */
-  /* Note results are scaled up by sqrt(8) compared to a true DCT; */
-  /* furthermore, we scale the results by 2**PASS1_BITS. */
-  /* DCTELEM * rvv_out = malloc(sizeof(DCTELEM) * DCTSIZE2); */
-  /* memcpy(rvv_out, data, sizeof(DCTELEM) * DCTSIZE2); */
-  /* dataptr = rvv_out; */
-  dataptr = data;
+    /* Pass 1: process rows. */
+    /* Note results are scaled up by sqrt(8) compared to a true DCT; */
+    /* furthermore, we scale the results by 2**PASS1_BITS. */
+    /* DCTELEM * rvv_out = malloc(sizeof(DCTELEM) * DCTSIZE2); */
+    /* memcpy(rvv_out, data, sizeof(DCTELEM) * DCTSIZE2); */
+    /* dataptr = rvv_out; */
+    dataptr = data;
 
-  for (ctr = 0; ctr < DCTSIZE;) {
-    size_t vl;
-    __asm__ volatile("vsetvli %0, %1, e32, m1, ta, ma" : "=r"(vl) : "r"(DCTSIZE));
-    __asm__ volatile("vlseg8e32.v v0, (%0)" : : "r"(&dataptr[ctr * DCTSIZE]));
-    VADD_VV(TMP0, IN0, IN7);
-    VSUB_VV(TMP7, IN0, IN7);
-    VADD_VV(TMP1, IN1, IN6);
-    VSUB_VV(TMP6, IN1, IN6);
-    VADD_VV(TMP2, IN2, IN5);
-    VSUB_VV(TMP5, IN2, IN5);
-    VADD_VV(TMP3, IN3, IN4);
-    VSUB_VV(TMP4, IN3, IN4);
+    for (ctr = 0; ctr < DCTSIZE;) {
+        size_t vl;
+        __asm__ volatile("vsetvli %0, %1, e32, m1, ta, ma" : "=r"(vl) : "r"(DCTSIZE));
+        __asm__ volatile("vlseg8e32.v v0, (%0)" : : "r"(&dataptr[ctr * DCTSIZE]));
+        VADD_VV(TMP0, IN0, IN7);
+        VSUB_VV(TMP7, IN0, IN7);
+        VADD_VV(TMP1, IN1, IN6);
+        VSUB_VV(TMP6, IN1, IN6);
+        VADD_VV(TMP2, IN2, IN5);
+        VSUB_VV(TMP5, IN2, IN5);
+        VADD_VV(TMP3, IN3, IN4);
+        VSUB_VV(TMP4, IN3, IN4);
 
-    VADD_VV(TMP10, TMP0, TMP3);
-    VSUB_VV(TMP13, TMP0, TMP3);
-    VADD_VV(TMP11, TMP1, TMP2);
-    VSUB_VV(TMP12, TMP1, TMP2);
+        VADD_VV(TMP10, TMP0, TMP3);
+        VSUB_VV(TMP13, TMP0, TMP3);
+        VADD_VV(TMP11, TMP1, TMP2);
+        VSUB_VV(TMP12, TMP1, TMP2);
 
-    VADD_VV(OUT0, TMP10, TMP11);
-    VSLL_VI(OUT0, OUT0, PASS1_BITS);
-    VSUB_VV(OUT4, TMP10, TMP11);
-    VSLL_VI(OUT4, OUT4, PASS1_BITS);
+        VADD_VV(OUT0, TMP10, TMP11);
+        VSLL_VI(OUT0, OUT0, PASS1_BITS);
+        VSUB_VV(OUT4, TMP10, TMP11);
+        VSLL_VI(OUT4, OUT4, PASS1_BITS);
 
-    VADD_VV(Z1, TMP12, TMP13);
-    VMUL_VX(Z1, Z1, FIX_0_541196100);
+        VADD_VV(Z1, TMP12, TMP13);
+        VMUL_VX(Z1, Z1, FIX_0_541196100);
 
-    VMUL_VX(OUT2, TMP13, FIX_0_765366865);
-    VADD_VV(OUT2, OUT2, Z1);
-    V_DESCALE(OUT2, CONST_BITS-PASS1_BITS);
+        VMUL_VX(OUT2, TMP13, FIX_0_765366865);
+        VADD_VV(OUT2, OUT2, Z1);
+        V_DESCALE(OUT2, CONST_BITS-PASS1_BITS);
 
-    VMUL_VX(OUT6, TMP12, - FIX_1_847759065);
-    VADD_VV(OUT6, OUT6, Z1);
-    V_DESCALE(OUT6, CONST_BITS-PASS1_BITS);
+        VMUL_VX(OUT6, TMP12, - FIX_1_847759065);
+        VADD_VV(OUT6, OUT6, Z1);
+        V_DESCALE(OUT6, CONST_BITS-PASS1_BITS);
 
-    VADD_VV(Z1, TMP4, TMP7);
-    VADD_VV(Z2, TMP5, TMP6);
-    VADD_VV(Z3, TMP4, TMP6);
-    VADD_VV(Z4, TMP5, TMP7);
+        VADD_VV(Z1, TMP4, TMP7);
+        VADD_VV(Z2, TMP5, TMP6);
+        VADD_VV(Z3, TMP4, TMP6);
+        VADD_VV(Z4, TMP5, TMP7);
 
-    VADD_VV(Z5, Z3, Z4);
-    VMUL_VX(Z5, Z5, FIX_1_175875602);
+        VADD_VV(Z5, Z3, Z4);
+        VMUL_VX(Z5, Z5, FIX_1_175875602);
 
-    VMUL_VX(TMP4, TMP4, FIX_0_298631336);
-    VMUL_VX(TMP5, TMP5, FIX_2_053119869);
-    VMUL_VX(TMP6, TMP6, FIX_3_072711026);
-    VMUL_VX(TMP7, TMP7, FIX_1_501321110);
+        VMUL_VX(TMP4, TMP4, FIX_0_298631336);
+        VMUL_VX(TMP5, TMP5, FIX_2_053119869);
+        VMUL_VX(TMP6, TMP6, FIX_3_072711026);
+        VMUL_VX(TMP7, TMP7, FIX_1_501321110);
 
-    VMUL_VX(Z1, Z1, - FIX_0_899976223);
-    VMUL_VX(Z2, Z2, - FIX_2_562915447);
-    VMUL_VX(Z3, Z3, - FIX_1_961570560);
-    VMUL_VX(Z4, Z4, - FIX_0_390180644);
+        VMUL_VX(Z1, Z1, - FIX_0_899976223);
+        VMUL_VX(Z2, Z2, - FIX_2_562915447);
+        VMUL_VX(Z3, Z3, - FIX_1_961570560);
+        VMUL_VX(Z4, Z4, - FIX_0_390180644);
 
-    VADD_VV(Z3, Z3, Z5);
-    VADD_VV(Z4, Z4, Z5);
+        VADD_VV(Z3, Z3, Z5);
+        VADD_VV(Z4, Z4, Z5);
 
-    VADD_VV(OUT7, TMP4, Z1);
-    VADD_VV(OUT7, OUT7, Z3);
-    V_DESCALE(OUT7, CONST_BITS-PASS1_BITS);
+        VADD_VV(OUT7, TMP4, Z1);
+        VADD_VV(OUT7, OUT7, Z3);
+        V_DESCALE(OUT7, CONST_BITS-PASS1_BITS);
 
-    VADD_VV(OUT5, TMP5, Z2);
-    VADD_VV(OUT5, OUT5, Z4);
-    V_DESCALE(OUT5, CONST_BITS-PASS1_BITS);
+        VADD_VV(OUT5, TMP5, Z2);
+        VADD_VV(OUT5, OUT5, Z4);
+        V_DESCALE(OUT5, CONST_BITS-PASS1_BITS);
 
-    VADD_VV(OUT3, TMP6, Z2);
-    VADD_VV(OUT3, OUT3, Z3);
-    V_DESCALE(OUT3, CONST_BITS-PASS1_BITS);
+        VADD_VV(OUT3, TMP6, Z2);
+        VADD_VV(OUT3, OUT3, Z3);
+        V_DESCALE(OUT3, CONST_BITS-PASS1_BITS);
 
-    VADD_VV(OUT1, TMP7, Z1);
-    VADD_VV(OUT1, OUT1, Z4);
-    V_DESCALE(OUT1, CONST_BITS-PASS1_BITS);
+        VADD_VV(OUT1, TMP7, Z1);
+        VADD_VV(OUT1, OUT1, Z4);
+        V_DESCALE(OUT1, CONST_BITS-PASS1_BITS);
 
-    __asm__ volatile("vsseg8e32.v v24, (%0)" : : "r"(&dataptr[ctr * DCTSIZE]));
+        __asm__ volatile("vsseg8e32.v v24, (%0)" : : "r"(&dataptr[ctr * DCTSIZE]));
 
-    ctr += vl;
-  }
+        ctr += vl;
+    }
 #else
 
-  /* Pass 1: process rows. */
-  /* Note results are scaled up by sqrt(8) compared to a true DCT; */
-  /* furthermore, we scale the results by 2**PASS1_BITS. */
+    /* Pass 1: process rows. */
+    /* Note results are scaled up by sqrt(8) compared to a true DCT; */
+    /* furthermore, we scale the results by 2**PASS1_BITS. */
 
-  dataptr = data;
-  for (ctr = DCTSIZE-1; ctr >= 0; ctr--) {
-    tmp0 = dataptr[0] + dataptr[7];
-    tmp7 = dataptr[0] - dataptr[7];
-    tmp1 = dataptr[1] + dataptr[6];
-    tmp6 = dataptr[1] - dataptr[6];
-    tmp2 = dataptr[2] + dataptr[5];
-    tmp5 = dataptr[2] - dataptr[5];
-    tmp3 = dataptr[3] + dataptr[4];
-    tmp4 = dataptr[3] - dataptr[4];
+    dataptr = data;
+    for (ctr = DCTSIZE-1; ctr >= 0; ctr--) {
+        tmp0 = dataptr[0] + dataptr[7];
+        tmp7 = dataptr[0] - dataptr[7];
+        tmp1 = dataptr[1] + dataptr[6];
+        tmp6 = dataptr[1] - dataptr[6];
+        tmp2 = dataptr[2] + dataptr[5];
+        tmp5 = dataptr[2] - dataptr[5];
+        tmp3 = dataptr[3] + dataptr[4];
+        tmp4 = dataptr[3] - dataptr[4];
 
-    /* Even part per LL&M figure 1 --- note that published figure is faulty;
-     * rotator "sqrt(2)*c1" should be "sqrt(2)*c6".
-     */
+        /* Even part per LL&M figure 1 --- note that published figure is faulty;
+         * rotator "sqrt(2)*c1" should be "sqrt(2)*c6".
+         */
 
-    tmp10 = tmp0 + tmp3;
-    tmp13 = tmp0 - tmp3;
-    tmp11 = tmp1 + tmp2;
-    tmp12 = tmp1 - tmp2;
+        tmp10 = tmp0 + tmp3;
+        tmp13 = tmp0 - tmp3;
+        tmp11 = tmp1 + tmp2;
+        tmp12 = tmp1 - tmp2;
 
-    dataptr[0] = (DCTELEM) ((tmp10 + tmp11) << PASS1_BITS);
-    dataptr[4] = (DCTELEM) ((tmp10 - tmp11) << PASS1_BITS);
+        dataptr[0] = (DCTELEM) ((tmp10 + tmp11) << PASS1_BITS);
+        dataptr[4] = (DCTELEM) ((tmp10 - tmp11) << PASS1_BITS);
 
-    z1 = MULTIPLY(tmp12 + tmp13, FIX_0_541196100);
-    dataptr[2] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp13, FIX_0_765366865),
-                   CONST_BITS-PASS1_BITS);
-    dataptr[6] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp12, - FIX_1_847759065),
-                   CONST_BITS-PASS1_BITS);
+        z1 = MULTIPLY(tmp12 + tmp13, FIX_0_541196100);
+        dataptr[2] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp13, FIX_0_765366865),
+                                       CONST_BITS-PASS1_BITS);
+        dataptr[6] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp12, - FIX_1_847759065),
+                                       CONST_BITS-PASS1_BITS);
 
-    /* Odd part per figure 8 --- note paper omits factor of sqrt(2).
-     * cK represents cos(K*pi/16).
-     * i0..i3 in the paper are tmp4..tmp7 here.
-     */
+        /* Odd part per figure 8 --- note paper omits factor of sqrt(2).
+         * cK represents cos(K*pi/16).
+         * i0..i3 in the paper are tmp4..tmp7 here.
+         */
 
-    z1 = tmp4 + tmp7;
-    z2 = tmp5 + tmp6;
-    z3 = tmp4 + tmp6;
-    z4 = tmp5 + tmp7;
-    z5 = MULTIPLY(z3 + z4, FIX_1_175875602); /* sqrt(2) * c3 */
+        z1 = tmp4 + tmp7;
+        z2 = tmp5 + tmp6;
+        z3 = tmp4 + tmp6;
+        z4 = tmp5 + tmp7;
+        z5 = MULTIPLY(z3 + z4, FIX_1_175875602); /* sqrt(2) * c3 */
 
-    tmp4 = MULTIPLY(tmp4, FIX_0_298631336); /* sqrt(2) * (-c1+c3+c5-c7) */
-    tmp5 = MULTIPLY(tmp5, FIX_2_053119869); /* sqrt(2) * ( c1+c3-c5+c7) */
-    tmp6 = MULTIPLY(tmp6, FIX_3_072711026); /* sqrt(2) * ( c1+c3+c5-c7) */
-    tmp7 = MULTIPLY(tmp7, FIX_1_501321110); /* sqrt(2) * ( c1+c3-c5-c7) */
-    z1 = MULTIPLY(z1, - FIX_0_899976223); /* sqrt(2) * (c7-c3) */
-    z2 = MULTIPLY(z2, - FIX_2_562915447); /* sqrt(2) * (-c1-c3) */
-    z3 = MULTIPLY(z3, - FIX_1_961570560); /* sqrt(2) * (-c3-c5) */
-    z4 = MULTIPLY(z4, - FIX_0_390180644); /* sqrt(2) * (c5-c3) */
+        tmp4 = MULTIPLY(tmp4, FIX_0_298631336); /* sqrt(2) * (-c1+c3+c5-c7) */
+        tmp5 = MULTIPLY(tmp5, FIX_2_053119869); /* sqrt(2) * ( c1+c3-c5+c7) */
+        tmp6 = MULTIPLY(tmp6, FIX_3_072711026); /* sqrt(2) * ( c1+c3+c5-c7) */
+        tmp7 = MULTIPLY(tmp7, FIX_1_501321110); /* sqrt(2) * ( c1+c3-c5-c7) */
+        z1 = MULTIPLY(z1, - FIX_0_899976223); /* sqrt(2) * (c7-c3) */
+        z2 = MULTIPLY(z2, - FIX_2_562915447); /* sqrt(2) * (-c1-c3) */
+        z3 = MULTIPLY(z3, - FIX_1_961570560); /* sqrt(2) * (-c3-c5) */
+        z4 = MULTIPLY(z4, - FIX_0_390180644); /* sqrt(2) * (c5-c3) */
 
-    z3 += z5;
-    z4 += z5;
+        z3 += z5;
+        z4 += z5;
 
-    dataptr[7] = (DCTELEM) DESCALE(tmp4 + z1 + z3, CONST_BITS-PASS1_BITS);
-    dataptr[5] = (DCTELEM) DESCALE(tmp5 + z2 + z4, CONST_BITS-PASS1_BITS);
-    dataptr[3] = (DCTELEM) DESCALE(tmp6 + z2 + z3, CONST_BITS-PASS1_BITS);
-    dataptr[1] = (DCTELEM) DESCALE(tmp7 + z1 + z4, CONST_BITS-PASS1_BITS);
+        dataptr[7] = (DCTELEM) DESCALE(tmp4 + z1 + z3, CONST_BITS-PASS1_BITS);
+        dataptr[5] = (DCTELEM) DESCALE(tmp5 + z2 + z4, CONST_BITS-PASS1_BITS);
+        dataptr[3] = (DCTELEM) DESCALE(tmp6 + z2 + z3, CONST_BITS-PASS1_BITS);
+        dataptr[1] = (DCTELEM) DESCALE(tmp7 + z1 + z4, CONST_BITS-PASS1_BITS);
 
-    dataptr += DCTSIZE;        /* advance pointer to next row */
-  }
+        dataptr += DCTSIZE;        /* advance pointer to next row */
+    }
 #endif
 
 #if USE_RVV
-  dataptr = data;
-  for (ctr = 0; ctr < DCTSIZE; ) {
-    size_t vl;
-    __asm__ volatile("vsetvli %0, %1, e32, m1, ta, ma" : "=r"(vl) : "r"(DCTSIZE));
-    __asm__ volatile("vle32.v v0, (%0)" : : "r"(&dataptr[DCTSIZE * 0 + ctr]));
-    __asm__ volatile("vle32.v v1, (%0)" : : "r"(&dataptr[DCTSIZE * 1 + ctr]));
-    __asm__ volatile("vle32.v v2, (%0)" : : "r"(&dataptr[DCTSIZE * 2 + ctr]));
-    __asm__ volatile("vle32.v v3, (%0)" : : "r"(&dataptr[DCTSIZE * 3 + ctr]));
-    __asm__ volatile("vle32.v v4, (%0)" : : "r"(&dataptr[DCTSIZE * 4 + ctr]));
-    __asm__ volatile("vle32.v v5, (%0)" : : "r"(&dataptr[DCTSIZE * 5 + ctr]));
-    __asm__ volatile("vle32.v v6, (%0)" : : "r"(&dataptr[DCTSIZE * 6 + ctr]));
-    __asm__ volatile("vle32.v v7, (%0)" : : "r"(&dataptr[DCTSIZE * 7 + ctr]));
+    dataptr = data;
+    for (ctr = 0; ctr < DCTSIZE; ) {
+        size_t vl;
+        __asm__ volatile("vsetvli %0, %1, e32, m1, ta, ma" : "=r"(vl) : "r"(DCTSIZE));
+        __asm__ volatile("vle32.v v0, (%0)" : : "r"(&dataptr[DCTSIZE * 0 + ctr]));
+        __asm__ volatile("vle32.v v1, (%0)" : : "r"(&dataptr[DCTSIZE * 1 + ctr]));
+        __asm__ volatile("vle32.v v2, (%0)" : : "r"(&dataptr[DCTSIZE * 2 + ctr]));
+        __asm__ volatile("vle32.v v3, (%0)" : : "r"(&dataptr[DCTSIZE * 3 + ctr]));
+        __asm__ volatile("vle32.v v4, (%0)" : : "r"(&dataptr[DCTSIZE * 4 + ctr]));
+        __asm__ volatile("vle32.v v5, (%0)" : : "r"(&dataptr[DCTSIZE * 5 + ctr]));
+        __asm__ volatile("vle32.v v6, (%0)" : : "r"(&dataptr[DCTSIZE * 6 + ctr]));
+        __asm__ volatile("vle32.v v7, (%0)" : : "r"(&dataptr[DCTSIZE * 7 + ctr]));
 
-    VADD_VV(TMP0, IN0, IN7);
-    VSUB_VV(TMP7, IN0, IN7);
-    VADD_VV(TMP1, IN1, IN6);
-    VSUB_VV(TMP6, IN1, IN6);
-    VADD_VV(TMP2, IN2, IN5);
-    VSUB_VV(TMP5, IN2, IN5);
-    VADD_VV(TMP3, IN3, IN4);
-    VSUB_VV(TMP4, IN3, IN4);
+        VADD_VV(TMP0, IN0, IN7);
+        VSUB_VV(TMP7, IN0, IN7);
+        VADD_VV(TMP1, IN1, IN6);
+        VSUB_VV(TMP6, IN1, IN6);
+        VADD_VV(TMP2, IN2, IN5);
+        VSUB_VV(TMP5, IN2, IN5);
+        VADD_VV(TMP3, IN3, IN4);
+        VSUB_VV(TMP4, IN3, IN4);
 
-    VADD_VV(TMP10, TMP0, TMP3);
-    VSUB_VV(TMP13, TMP0, TMP3);
-    VADD_VV(TMP11, TMP1, TMP2);
-    VSUB_VV(TMP12, TMP1, TMP2);
+        VADD_VV(TMP10, TMP0, TMP3);
+        VSUB_VV(TMP13, TMP0, TMP3);
+        VADD_VV(TMP11, TMP1, TMP2);
+        VSUB_VV(TMP12, TMP1, TMP2);
 
-    VADD_VV(OUT0, TMP10, TMP11);
-    V_DESCALE(OUT0, PASS1_BITS);
-    VSUB_VV(OUT4, TMP10, TMP11);
-    V_DESCALE(OUT4, PASS1_BITS);
+        VADD_VV(OUT0, TMP10, TMP11);
+        V_DESCALE(OUT0, PASS1_BITS);
+        VSUB_VV(OUT4, TMP10, TMP11);
+        V_DESCALE(OUT4, PASS1_BITS);
 
-    VADD_VV(Z1, TMP12, TMP13);
-    VMUL_VX(Z1, Z1, FIX_0_541196100);
+        VADD_VV(Z1, TMP12, TMP13);
+        VMUL_VX(Z1, Z1, FIX_0_541196100);
 
-    VMUL_VX(OUT2, TMP13, FIX_0_765366865);
-    VADD_VV(OUT2, OUT2, Z1);
-    V_DESCALE(OUT2, CONST_BITS+PASS1_BITS);
+        VMUL_VX(OUT2, TMP13, FIX_0_765366865);
+        VADD_VV(OUT2, OUT2, Z1);
+        V_DESCALE(OUT2, CONST_BITS+PASS1_BITS);
 
-    VMUL_VX(OUT6, TMP12, - FIX_1_847759065);
-    VADD_VV(OUT6, OUT6, Z1);
-    V_DESCALE(OUT6, CONST_BITS+PASS1_BITS);
+        VMUL_VX(OUT6, TMP12, - FIX_1_847759065);
+        VADD_VV(OUT6, OUT6, Z1);
+        V_DESCALE(OUT6, CONST_BITS+PASS1_BITS);
 
-    VADD_VV(Z1, TMP4, TMP7);
-    VADD_VV(Z2, TMP5, TMP6);
-    VADD_VV(Z3, TMP4, TMP6);
-    VADD_VV(Z4, TMP5, TMP7);
+        VADD_VV(Z1, TMP4, TMP7);
+        VADD_VV(Z2, TMP5, TMP6);
+        VADD_VV(Z3, TMP4, TMP6);
+        VADD_VV(Z4, TMP5, TMP7);
 
-    VADD_VV(Z5, Z3, Z4);
-    VMUL_VX(Z5, Z5, FIX_1_175875602);
+        VADD_VV(Z5, Z3, Z4);
+        VMUL_VX(Z5, Z5, FIX_1_175875602);
 
-    VMUL_VX(TMP4, TMP4, FIX_0_298631336);
-    VMUL_VX(TMP5, TMP5, FIX_2_053119869);
-    VMUL_VX(TMP6, TMP6, FIX_3_072711026);
-    VMUL_VX(TMP7, TMP7, FIX_1_501321110);
+        VMUL_VX(TMP4, TMP4, FIX_0_298631336);
+        VMUL_VX(TMP5, TMP5, FIX_2_053119869);
+        VMUL_VX(TMP6, TMP6, FIX_3_072711026);
+        VMUL_VX(TMP7, TMP7, FIX_1_501321110);
 
-    VMUL_VX(Z1, Z1, - FIX_0_899976223);
-    VMUL_VX(Z2, Z2, - FIX_2_562915447);
-    VMUL_VX(Z3, Z3, - FIX_1_961570560);
-    VMUL_VX(Z4, Z4, - FIX_0_390180644);
+        VMUL_VX(Z1, Z1, - FIX_0_899976223);
+        VMUL_VX(Z2, Z2, - FIX_2_562915447);
+        VMUL_VX(Z3, Z3, - FIX_1_961570560);
+        VMUL_VX(Z4, Z4, - FIX_0_390180644);
 
-    VADD_VV(Z3, Z3, Z5);
-    VADD_VV(Z4, Z4, Z5);
+        VADD_VV(Z3, Z3, Z5);
+        VADD_VV(Z4, Z4, Z5);
 
-    VADD_VV(OUT7, TMP4, Z1);
-    VADD_VV(OUT7, OUT7, Z3);
-    V_DESCALE(OUT7, CONST_BITS+PASS1_BITS);
+        VADD_VV(OUT7, TMP4, Z1);
+        VADD_VV(OUT7, OUT7, Z3);
+        V_DESCALE(OUT7, CONST_BITS+PASS1_BITS);
 
-    VADD_VV(OUT5, TMP5, Z2);
-    VADD_VV(OUT5, OUT5, Z4);
-    V_DESCALE(OUT5, CONST_BITS+PASS1_BITS);
+        VADD_VV(OUT5, TMP5, Z2);
+        VADD_VV(OUT5, OUT5, Z4);
+        V_DESCALE(OUT5, CONST_BITS+PASS1_BITS);
 
-    VADD_VV(OUT3, TMP6, Z2);
-    VADD_VV(OUT3, OUT3, Z3);
-    V_DESCALE(OUT3, CONST_BITS+PASS1_BITS);
+        VADD_VV(OUT3, TMP6, Z2);
+        VADD_VV(OUT3, OUT3, Z3);
+        V_DESCALE(OUT3, CONST_BITS+PASS1_BITS);
 
-    VADD_VV(OUT1, TMP7, Z1);
-    VADD_VV(OUT1, OUT1, Z4);
-    V_DESCALE(OUT1, CONST_BITS+PASS1_BITS);
+        VADD_VV(OUT1, TMP7, Z1);
+        VADD_VV(OUT1, OUT1, Z4);
+        V_DESCALE(OUT1, CONST_BITS+PASS1_BITS);
 
-    __asm__ volatile("vse32.v v24, (%0)" : :"r"(&dataptr[DCTSIZE * 0 + ctr]));
-    __asm__ volatile("vse32.v v25, (%0)" : :"r"(&dataptr[DCTSIZE * 1 + ctr]));
-    __asm__ volatile("vse32.v v26, (%0)" : :"r"(&dataptr[DCTSIZE * 2 + ctr]));
-    __asm__ volatile("vse32.v v27, (%0)" : :"r"(&dataptr[DCTSIZE * 3 + ctr]));
-    __asm__ volatile("vse32.v v28, (%0)" : :"r"(&dataptr[DCTSIZE * 4 + ctr]));
-    __asm__ volatile("vse32.v v29, (%0)" : :"r"(&dataptr[DCTSIZE * 5 + ctr]));
-    __asm__ volatile("vse32.v v30, (%0)" : :"r"(&dataptr[DCTSIZE * 6 + ctr]));
-    __asm__ volatile("vse32.v v31, (%0)" : :"r"(&dataptr[DCTSIZE * 7 + ctr]));
-    ctr += vl;
-  }
+        __asm__ volatile("vse32.v v24, (%0)" : :"r"(&dataptr[DCTSIZE * 0 + ctr]));
+        __asm__ volatile("vse32.v v25, (%0)" : :"r"(&dataptr[DCTSIZE * 1 + ctr]));
+        __asm__ volatile("vse32.v v26, (%0)" : :"r"(&dataptr[DCTSIZE * 2 + ctr]));
+        __asm__ volatile("vse32.v v27, (%0)" : :"r"(&dataptr[DCTSIZE * 3 + ctr]));
+        __asm__ volatile("vse32.v v28, (%0)" : :"r"(&dataptr[DCTSIZE * 4 + ctr]));
+        __asm__ volatile("vse32.v v29, (%0)" : :"r"(&dataptr[DCTSIZE * 5 + ctr]));
+        __asm__ volatile("vse32.v v30, (%0)" : :"r"(&dataptr[DCTSIZE * 6 + ctr]));
+        __asm__ volatile("vse32.v v31, (%0)" : :"r"(&dataptr[DCTSIZE * 7 + ctr]));
+        ctr += vl;
+    }
 #else
-  /* Pass 2: process columns.
-   * We remove the PASS1_BITS scaling, but leave the results scaled up
-   * by an overall factor of 8.
-   */
-
-  dataptr = data;
-  for (ctr = DCTSIZE-1; ctr >= 0; ctr--) {
-    tmp0 = dataptr[DCTSIZE*0] + dataptr[DCTSIZE*7];
-    tmp7 = dataptr[DCTSIZE*0] - dataptr[DCTSIZE*7];
-    tmp1 = dataptr[DCTSIZE*1] + dataptr[DCTSIZE*6];
-    tmp6 = dataptr[DCTSIZE*1] - dataptr[DCTSIZE*6];
-    tmp2 = dataptr[DCTSIZE*2] + dataptr[DCTSIZE*5];
-    tmp5 = dataptr[DCTSIZE*2] - dataptr[DCTSIZE*5];
-    tmp3 = dataptr[DCTSIZE*3] + dataptr[DCTSIZE*4];
-    tmp4 = dataptr[DCTSIZE*3] - dataptr[DCTSIZE*4];
-
-    /* Even part per LL&M figure 1 --- note that published figure is faulty;
-     * rotator "sqrt(2)*c1" should be "sqrt(2)*c6".
+    /* Pass 2: process columns.
+     * We remove the PASS1_BITS scaling, but leave the results scaled up
+     * by an overall factor of 8.
      */
 
-    tmp10 = tmp0 + tmp3;
-    tmp13 = tmp0 - tmp3;
-    tmp11 = tmp1 + tmp2;
-    tmp12 = tmp1 - tmp2;
+    dataptr = data;
+    for (ctr = DCTSIZE-1; ctr >= 0; ctr--) {
+        tmp0 = dataptr[DCTSIZE*0] + dataptr[DCTSIZE*7];
+        tmp7 = dataptr[DCTSIZE*0] - dataptr[DCTSIZE*7];
+        tmp1 = dataptr[DCTSIZE*1] + dataptr[DCTSIZE*6];
+        tmp6 = dataptr[DCTSIZE*1] - dataptr[DCTSIZE*6];
+        tmp2 = dataptr[DCTSIZE*2] + dataptr[DCTSIZE*5];
+        tmp5 = dataptr[DCTSIZE*2] - dataptr[DCTSIZE*5];
+        tmp3 = dataptr[DCTSIZE*3] + dataptr[DCTSIZE*4];
+        tmp4 = dataptr[DCTSIZE*3] - dataptr[DCTSIZE*4];
 
-    dataptr[DCTSIZE*0] = (DCTELEM) DESCALE(tmp10 + tmp11, PASS1_BITS);
-    dataptr[DCTSIZE*4] = (DCTELEM) DESCALE(tmp10 - tmp11, PASS1_BITS);
+        /* Even part per LL&M figure 1 --- note that published figure is faulty;
+         * rotator "sqrt(2)*c1" should be "sqrt(2)*c6".
+         */
 
-    z1 = MULTIPLY(tmp12 + tmp13, FIX_0_541196100);
-    dataptr[DCTSIZE*2] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp13, FIX_0_765366865),
-                       CONST_BITS+PASS1_BITS);
-    dataptr[DCTSIZE*6] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp12, - FIX_1_847759065),
-                       CONST_BITS+PASS1_BITS);
+        tmp10 = tmp0 + tmp3;
+        tmp13 = tmp0 - tmp3;
+        tmp11 = tmp1 + tmp2;
+        tmp12 = tmp1 - tmp2;
 
-    /* Odd part per figure 8 --- note paper omits factor of sqrt(2).
-     * cK represents cos(K*pi/16).
-     * i0..i3 in the paper are tmp4..tmp7 here.
-     */
+        dataptr[DCTSIZE*0] = (DCTELEM) DESCALE(tmp10 + tmp11, PASS1_BITS);
+        dataptr[DCTSIZE*4] = (DCTELEM) DESCALE(tmp10 - tmp11, PASS1_BITS);
 
-    z1 = tmp4 + tmp7;
-    z2 = tmp5 + tmp6;
-    z3 = tmp4 + tmp6;
-    z4 = tmp5 + tmp7;
-    z5 = MULTIPLY(z3 + z4, FIX_1_175875602); /* sqrt(2) * c3 */
+        z1 = MULTIPLY(tmp12 + tmp13, FIX_0_541196100);
+        dataptr[DCTSIZE*2] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp13, FIX_0_765366865),
+                                               CONST_BITS+PASS1_BITS);
+        dataptr[DCTSIZE*6] = (DCTELEM) DESCALE(z1 + MULTIPLY(tmp12, - FIX_1_847759065),
+                                               CONST_BITS+PASS1_BITS);
 
-    tmp4 = MULTIPLY(tmp4, FIX_0_298631336); /* sqrt(2) * (-c1+c3+c5-c7) */
-    tmp5 = MULTIPLY(tmp5, FIX_2_053119869); /* sqrt(2) * ( c1+c3-c5+c7) */
-    tmp6 = MULTIPLY(tmp6, FIX_3_072711026); /* sqrt(2) * ( c1+c3+c5-c7) */
-    tmp7 = MULTIPLY(tmp7, FIX_1_501321110); /* sqrt(2) * ( c1+c3-c5-c7) */
-    z1 = MULTIPLY(z1, - FIX_0_899976223); /* sqrt(2) * (c7-c3) */
-    z2 = MULTIPLY(z2, - FIX_2_562915447); /* sqrt(2) * (-c1-c3) */
-    z3 = MULTIPLY(z3, - FIX_1_961570560); /* sqrt(2) * (-c3-c5) */
-    z4 = MULTIPLY(z4, - FIX_0_390180644); /* sqrt(2) * (c5-c3) */
+        /* Odd part per figure 8 --- note paper omits factor of sqrt(2).
+         * cK represents cos(K*pi/16).
+         * i0..i3 in the paper are tmp4..tmp7 here.
+         */
 
-    z3 += z5;
-    z4 += z5;
+        z1 = tmp4 + tmp7;
+        z2 = tmp5 + tmp6;
+        z3 = tmp4 + tmp6;
+        z4 = tmp5 + tmp7;
+        z5 = MULTIPLY(z3 + z4, FIX_1_175875602); /* sqrt(2) * c3 */
 
-    dataptr[DCTSIZE*7] = (DCTELEM) DESCALE(tmp4 + z1 + z3,
-                       CONST_BITS+PASS1_BITS);
-    dataptr[DCTSIZE*5] = (DCTELEM) DESCALE(tmp5 + z2 + z4,
-                       CONST_BITS+PASS1_BITS);
-    dataptr[DCTSIZE*3] = (DCTELEM) DESCALE(tmp6 + z2 + z3,
-                       CONST_BITS+PASS1_BITS);
-    dataptr[DCTSIZE*1] = (DCTELEM) DESCALE(tmp7 + z1 + z4,
-                       CONST_BITS+PASS1_BITS);
+        tmp4 = MULTIPLY(tmp4, FIX_0_298631336); /* sqrt(2) * (-c1+c3+c5-c7) */
+        tmp5 = MULTIPLY(tmp5, FIX_2_053119869); /* sqrt(2) * ( c1+c3-c5+c7) */
+        tmp6 = MULTIPLY(tmp6, FIX_3_072711026); /* sqrt(2) * ( c1+c3+c5-c7) */
+        tmp7 = MULTIPLY(tmp7, FIX_1_501321110); /* sqrt(2) * ( c1+c3-c5-c7) */
+        z1 = MULTIPLY(z1, - FIX_0_899976223); /* sqrt(2) * (c7-c3) */
+        z2 = MULTIPLY(z2, - FIX_2_562915447); /* sqrt(2) * (-c1-c3) */
+        z3 = MULTIPLY(z3, - FIX_1_961570560); /* sqrt(2) * (-c3-c5) */
+        z4 = MULTIPLY(z4, - FIX_0_390180644); /* sqrt(2) * (c5-c3) */
 
-    dataptr++;            /* advance pointer to next column */
-  }
+        z3 += z5;
+        z4 += z5;
+
+        dataptr[DCTSIZE*7] = (DCTELEM) DESCALE(tmp4 + z1 + z3,
+                                               CONST_BITS+PASS1_BITS);
+        dataptr[DCTSIZE*5] = (DCTELEM) DESCALE(tmp5 + z2 + z4,
+                                               CONST_BITS+PASS1_BITS);
+        dataptr[DCTSIZE*3] = (DCTELEM) DESCALE(tmp6 + z2 + z3,
+                                               CONST_BITS+PASS1_BITS);
+        dataptr[DCTSIZE*1] = (DCTELEM) DESCALE(tmp7 + z1 + z4,
+                                               CONST_BITS+PASS1_BITS);
+
+        dataptr++;            /* advance pointer to next column */
+    }
 #endif
 
 }

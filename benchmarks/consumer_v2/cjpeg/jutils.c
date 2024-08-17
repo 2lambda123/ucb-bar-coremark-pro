@@ -1,12 +1,12 @@
 /*
-(C) 2014 EEMBC(R).  All rights reserved.                            
+(C) 2014 EEMBC(R).  All rights reserved.
 
-All EEMBC Benchmark Software are products of EEMBC 
-and are provided under the terms of the EEMBC Benchmark License Agreements.  
-The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members 
-and is protected under all applicable laws, including all applicable copyright laws.  
-If you received this EEMBC Benchmark Software without having 
-a currently effective EEMBC Benchmark License Agreement, you must discontinue use. 
+All EEMBC Benchmark Software are products of EEMBC
+and are provided under the terms of the EEMBC Benchmark License Agreements.
+The EEMBC Benchmark Software are proprietary intellectual properties of EEMBC and its Members
+and is protected under all applicable laws, including all applicable copyright laws.
+If you received this EEMBC Benchmark Software without having
+a currently effective EEMBC Benchmark License Agreement, you must discontinue use.
 Please refer to LICENSE.md for the specific license agreement that pertains to this Benchmark Software.
 */
 
@@ -17,15 +17,15 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  *
  *  EEMBC : Consumer Subcommittee
  *
- * AUTHOR : 
- *          Modified for Multi Instance Test Harness by Ron Olson, 
+ * AUTHOR :
+ *          Modified for Multi Instance Test Harness by Ron Olson,
  *          IBM Corporation
  *
  *    CVS : $Revision: 1.1 $
  *          $Date: 2004/05/10 22:36:05 $
  *          $Author: rick $
  *          $Source: D:/cvs/eembc2/consumer/cjpegv2/jutils.c,v $
- *          
+ *
  * NOTE   :
  *
  *------------------------------------------------------------------------------
@@ -53,8 +53,8 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
  *
  *
  *------------------------------------------------------------------------------
- * Other Copyright Notice (if any): 
- * 
+ * Other Copyright Notice (if any):
+ *
  * For conditions of distribution and use, see the accompanying README file.
  * ===========================================================================*/
 /*
@@ -77,28 +77,29 @@ Please refer to LICENSE.md for the specific license agreement that pertains to t
 
 /** Find and Open a file */
 ee_FILE *pathfind_file_cjpeg(const char *filename, const char *filemode,
-							char **actualname) {
-	char	*path[] = {"../data/libbmp/","","../../../","../../libbmp/",
-				"libbmp/","../../libjpeg/","libjpeg/",NULL};
-	char	buf[FILENAME_MAX];
-	int	i=0;
-	ee_FILE	*found_file=NULL;
+                             char **actualname) {
+    char	*path[] = {"../data/libbmp/","","../../../","../../libbmp/",
+                       "libbmp/","../../libjpeg/","libjpeg/",NULL
+                   };
+    char	buf[FILENAME_MAX];
+    int	i=0;
+    ee_FILE	*found_file=NULL;
 
-	if ((th_strcmp(filename,"stdin")) == 0) return th_fopen(filename,filemode);
+    if ((th_strcmp(filename,"stdin")) == 0) return th_fopen(filename,filemode);
 
-	while (path[i] != NULL)
-	{
-		th_strcpy(buf,path[i]);
-		th_strcat(buf,filename);
-		if ( (found_file = th_fopen(buf,filemode)) != NULL ) 
-		{
-			if (actualname)
-				*actualname = th_strdup(buf);
-			return found_file;
-		}
-		i++;
-	}
-	return NULL;
+    while (path[i] != NULL)
+    {
+        th_strcpy(buf,path[i]);
+        th_strcat(buf,filename);
+        if ( (found_file = th_fopen(buf,filemode)) != NULL )
+        {
+            if (actualname)
+                *actualname = th_strdup(buf);
+            return found_file;
+        }
+        i++;
+    }
+    return NULL;
 }
 
 /** Get file size using stat function */
@@ -107,13 +108,12 @@ size_t	getFilesize_cjpeg(const char *fname)
     size_t	length;
     struct	ee_stat st;
 
-    if (!fname || !*fname) 
-		length=0;
+    if (!fname || !*fname)
+        length=0;
+    else if ((th_stat(fname,&st))==-1)
+        length=0;
     else
-        if ((th_stat(fname,&st))==-1)
-			length=0;
-        else
-			length = st.st_size;
+        length = st.st_size;
     return length;
 }
 
@@ -132,16 +132,16 @@ size_t	getFilesize_cjpeg(const char *fname)
  */
 
 const char cjpeg_natural_order[DCTSIZE2+16] = {
-  0,  1,  8, 16,  9,  2,  3, 10,
- 17, 24, 32, 25, 18, 11,  4,  5,
- 12, 19, 26, 33, 40, 48, 41, 34,
- 27, 20, 13,  6,  7, 14, 21, 28,
- 35, 42, 49, 56, 57, 50, 43, 36,
- 29, 22, 15, 23, 30, 37, 44, 51,
- 58, 59, 52, 45, 38, 31, 39, 46,
- 53, 60, 61, 54, 47, 55, 62, 63,
- 63, 63, 63, 63, 63, 63, 63, 63, /* extra entries for safety in decoder */
- 63, 63, 63, 63, 63, 63, 63, 63
+    0,  1,  8, 16,  9,  2,  3, 10,
+    17, 24, 32, 25, 18, 11,  4,  5,
+    12, 19, 26, 33, 40, 48, 41, 34,
+    27, 20, 13,  6,  7, 14, 21, 28,
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63,
+    63, 63, 63, 63, 63, 63, 63, 63, /* extra entries for safety in decoder */
+    63, 63, 63, 63, 63, 63, 63, 63
 };
 
 
@@ -154,7 +154,7 @@ cjdiv_round_up (long a, long b)
 /* Compute a/b rounded up to next integer, ie, ceil(a/b) */
 /* Assumes a >= 0, b > 0 */
 {
-  return (a + b - 1L) / b;
+    return (a + b - 1L) / b;
 }
 
 
@@ -163,8 +163,8 @@ cjround_up (long a, long b)
 /* Compute a rounded up to next multiple of b, ie, ceil(a/b)*b */
 /* Assumes a >= 0, b > 0 */
 {
-  a += b - 1L;
-  return a - (a % b);
+    a += b - 1L;
+    return a - (a % b);
 }
 
 
@@ -190,54 +190,54 @@ cjround_up (long a, long b)
 
 GLOBAL(void)
 cjcopy_sample_rows (JSAMPARRAY input_array, int source_row,
-           JSAMPARRAY output_array, int dest_row,
-           int num_rows, JDIMENSION num_cols)
+                    JSAMPARRAY output_array, int dest_row,
+                    int num_rows, JDIMENSION num_cols)
 /* Copy some rows of samples from one place to another.
  * num_rows rows are copied from input_array[source_row++]
  * to output_array[dest_row++]; these areas may overlap for duplication.
  * The source and destination arrays must be at least as wide as num_cols.
  */
 {
-  register JSAMPROW inptr, outptr;
+    register JSAMPROW inptr, outptr;
 #ifdef FMEMCOPY
-  register size_t count = (size_t) (num_cols * SIZEOF(JSAMPLE));
+    register size_t count = (size_t) (num_cols * SIZEOF(JSAMPLE));
 #else
-  register JDIMENSION count;
+    register JDIMENSION count;
 #endif
-  register int row;
+    register int row;
 
-  input_array += source_row;
-  output_array += dest_row;
+    input_array += source_row;
+    output_array += dest_row;
 
-  for (row = num_rows; row > 0; row--) {
-    inptr = *input_array++;
-    outptr = *output_array++;
+    for (row = num_rows; row > 0; row--) {
+        inptr = *input_array++;
+        outptr = *output_array++;
 #ifdef FMEMCOPY
-    FMEMCOPY(outptr, inptr, count);
+        FMEMCOPY(outptr, inptr, count);
 #else
-    for (count = num_cols; count > 0; count--)
-      *outptr++ = *inptr++;    /* needn't bother with GETJSAMPLE() here */
+        for (count = num_cols; count > 0; count--)
+            *outptr++ = *inptr++;    /* needn't bother with GETJSAMPLE() here */
 #endif
-  }
+    }
 }
 
 
 GLOBAL(void)
 cjcopy_block_row (JBLOCKROW input_row, JBLOCKROW output_row,
-         JDIMENSION num_blocks)
+                  JDIMENSION num_blocks)
 /* Copy a row of coefficient blocks from one place to another. */
 {
 #ifdef FMEMCOPY
-  FMEMCOPY(output_row, input_row, num_blocks * (DCTSIZE2 * SIZEOF(JCOEF)));
+    FMEMCOPY(output_row, input_row, num_blocks * (DCTSIZE2 * SIZEOF(JCOEF)));
 #else
-  register JCOEFPTR inptr, outptr;
-  register long count;
+    register JCOEFPTR inptr, outptr;
+    register long count;
 
-  inptr = (JCOEFPTR) input_row;
-  outptr = (JCOEFPTR) output_row;
-  for (count = (long) num_blocks * DCTSIZE2; count > 0; count--) {
-    *outptr++ = *inptr++;
-  }
+    inptr = (JCOEFPTR) input_row;
+    outptr = (JCOEFPTR) output_row;
+    for (count = (long) num_blocks * DCTSIZE2; count > 0; count--) {
+        *outptr++ = *inptr++;
+    }
 #endif
 }
 
@@ -248,13 +248,13 @@ cjzero_far (void FAR * target, size_t bytestozero)
 /* This might be sample-array data, block-array data, or alloc_large data. */
 {
 #ifdef FMEMZERO
-  FMEMZERO(target, bytestozero);
+    FMEMZERO(target, bytestozero);
 #else
-  register char FAR * ptr = (char FAR *) target;
-  register size_t count;
+    register char FAR * ptr = (char FAR *) target;
+    register size_t count;
 
-  for (count = bytestozero; count > 0; count--) {
-    *ptr++ = 0;
-  }
+    for (count = bytestozero; count > 0; count--) {
+        *ptr++ = 0;
+    }
 #endif
 }
